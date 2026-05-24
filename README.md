@@ -1,152 +1,116 @@
-# Borrow System – REST API
+# Borrow System
 
-Refactored native PHP REST API.  
-Each endpoint lives in its own file under `/api/`.
+A simple borrowed items tracking system built with native PHP REST API and vanilla JavaScript.
 
----
+## Requirements
+
+- XAMPP (Apache + MySQL)
+- Browser (Chrome recommended)
+
+## Setup
+
+1. Import `borrow_system.sql` in phpMyAdmin
+2. Update your DB credentials in `config/database.php`
+3. Copy the folder to `htdocs/`
+4. Open `http://localhost/borrow_system/index.html`
 
 ## File Structure
 
 ```
-borrow_api/
+borrow_system/
 ├── config/
-│   ├── database.php   ← DB connection
-│   └── helpers.php    ← send_response, sanitize, validate_string, pagination …
+│   ├── database.php      - database connection
+│   └── helpers.php       - shared functions (response, validation, pagination)
 ├── api/
-│   ├── get.php        ← GET all records (paginated, filterable, searchable)
-│   ├── get_one.php    ← GET single record by id
-│   ├── create.php     ← POST create new record
-│   ├── update.php     ← POST edit or mark returned
-│   ├── delete.php     ← POST delete record
-│   └── filters.php    ← GET available filter options
-└── borrow_system.sql  ← Database schema + sample data
+│   ├── get.php           - get all records
+│   ├── get_one.php       - get single record
+│   ├── create.php        - add new record
+│   ├── update.php        - edit or mark as returned
+│   ├── delete.php        - delete a record
+│   └── filters.php       - get filter options
+├── index.html            - main UI
+├── script.js             - frontend logic
+├── styles.css            - styles
+└── borrow_system.sql     - database schema and sample data
 ```
 
----
+## API Endpoints
 
-## Endpoints
+### Get all records
+```
+GET api/get.php?filter=All&search=&page=1&limit=20
+```
 
-### GET /api/get.php
-Retrieve records with optional filtering, search, and **pagination**.
+| Param | Default | Description |
+|-------|---------|-------------|
+| filter | All | All, Returned, Not Returned |
+| search | - | search by item or borrower name |
+| page | 1 | page number |
+| limit | 20 | rows per page, max 100 |
 
-| Param    | Type   | Default      | Notes                              |
-|----------|--------|--------------|------------------------------------|
-| filter   | string | `All`        | `All`, `Returned`, `Not Returned`  |
-| search   | string | _(empty)_    | Matches `item_name`, `borrower_name` |
-| page     | int    | `1`          | Page number                        |
-| limit    | int    | `20`         | Rows per page (max 100)            |
+### Get single record
+```
+GET api/get_one.php?id=1
+```
 
-**Success response:**
+### Add new record
+```
+POST api/create.php
+```
 ```json
 {
-  "success": true,
-  "message": "Records retrieved successfully.",
-  "data": [ { "id": 1, "item_name": "HDMI Cable", "display_status": "Borrowed", ... } ],
-  "meta": {
-    "total_records": 42,
-    "total_pages": 3,
-    "current_page": 1,
-    "limit": 20
-  }
+  "item_name": "HDMI Cable",
+  "borrower_name": "Juan Dela Cruz",
+  "phone_number": "09171234567",
+  "borrow_date": "2026-05-24",
+  "expected_return_date": "2026-05-31"
 }
 ```
 
-**Empty response (no records found):**
+### Update a record
+```
+POST api/update.php
+```
+Mark as returned:
+```json
+{ "id": 1, "action": "mark_returned" }
+```
+Edit record:
 ```json
 {
-  "success": true,
-  "message": "No records found.",
-  "data": [],
-  "meta": { "total_records": 0, "total_pages": 0, "current_page": 1, "limit": 20 }
+  "id": 1,
+  "action": "edit",
+  "borrower_name": "Maria Santos",
+  "phone_number": "09181234567",
+  "expected_return_date": "2026-06-01",
+  "status": "Borrowed"
 }
 ```
 
----
-
-### GET /api/get_one.php?id=5
-Get a single record by ID.
-
----
-
-### POST /api/create.php
-Create a new borrow record.
-
-**Request body:**
+### Delete a record
+```
+POST api/delete.php
+```
 ```json
-{
-  "item_name"            : "HDMI Cable",
-  "borrower_name"        : "Juan Dela Cruz",
-  "borrow_date"          : "2026-05-24",
-  "expected_return_date" : "2026-05-31"
-}
+{ "id": 1 }
 ```
 
-**Validation rules:**
-- `item_name` – required, max **50 characters**
-- `borrower_name` – required, max **50 characters**
-- `borrow_date` – required, format `YYYY-MM-DD`
-- `expected_return_date` – required, must be **after** `borrow_date`
+## Validation Rules
 
-**Validation error response (HTTP 422):**
-```json
-{
-  "success": false,
-  "message": "Validation failed.",
-  "data": {
-    "errors": {
-      "item_name": "Item name must not exceed 50 characters.",
-      "borrower_name": "Borrower name is required."
-    }
-  }
-}
-```
+- `item_name` - required, max 50 characters
+- `borrower_name` - required, max 50 characters
+- `phone_number` - optional, numbers only, max 20 characters
+- `borrow_date` - required, format YYYY-MM-DD
+- `expected_return_date` - required, must be after borrow date
 
----
+## HTTP Status Codes
 
-### POST /api/update.php
-Edit a record or mark it returned.
-
-**Mark returned:**
-```json
-{ "id": 5, "action": "mark_returned" }
-```
-
-**Edit:**
-```json
-{
-  "id"                   : 5,
-  "action"               : "edit",
-  "borrower_name"        : "Maria Santos",
-  "expected_return_date" : "2026-06-01",
-  "status"               : "Borrowed"
-}
-```
-
----
-
-### POST /api/delete.php
-Delete a record.
-
-```json
-{ "id": 5 }
-```
-
----
-
-### GET /api/filters.php
-Returns available filter options.
-
----
-
-## HTTP Status Codes Used
-
-| Code | Meaning               |
-|------|-----------------------|
-| 200  | OK                    |
-| 201  | Created               |
-| 204  | No Content (OPTIONS)  |
-| 400  | Bad Request           |
-| 404  | Not Found             |
-| 405  | Method Not Allowed    |
-| 422  | Validation Error      |
-| 500  | Server Error          |
+| Code | Meaning |
+|------|---------|
+| 200 | OK |
+| 201 | Created |
+| 400 | Bad Request |
+| 404 | Not Found |
+| 405 | Method Not Allowed |
+| 422 | Validation Error |
+| 500 | Server Error |
